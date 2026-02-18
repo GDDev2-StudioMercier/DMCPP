@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "DMCPPCameraManager.h"
+#include "Public/DMCPPCameraManager.h"
 
 ADMCPPCameraManager::ADMCPPCameraManager()
 {

@@ -25,8 +25,6 @@ public class DMCPP : ModuleRules
 
 		PublicIncludePaths.AddRange(new string[] {
 			"DMCPP",
-			"DMCPP/Variant_Horror",
-			"DMCPP/Variant_Horror/UI",
 			"DMCPP/Variant_Shooter",
 			"DMCPP/Variant_Shooter/AI",
 			"DMCPP/Variant_Shooter/UI",

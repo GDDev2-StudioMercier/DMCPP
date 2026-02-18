@@ -1,26 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 
-#include "Variant_Horror/HorrorPlayerController.h"
+#include "Public/DMCPPPlayerController.h"
 #include "EnhancedInputSubsystems.h"
 #include "Engine/LocalPlayer.h"
 #include "InputMappingContext.h"
-#include "DMCPPCameraManager.h"
-#include "HorrorCharacter.h"
-#include "HorrorUI.h"
-#include "DMCPP.h"
+#include "Public/DMCPPCameraManager.h"
+#include "Blueprint/UserWidget.h"
+#include "Public/DMCPP.h"
 #include "Widgets/Input/SVirtualJoystick.h"
 
-AHorrorPlayerController::AHorrorPlayerController()
+ADMCPPPlayerController::ADMCPPPlayerController()
 {
 	// set the player camera manager class
 	PlayerCameraManagerClass = ADMCPPCameraManager::StaticClass();
 }
 
-void AHorrorPlayerController::BeginPlay()
+void ADMCPPPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	
 	// only spawn touch controls on local player controllers
 	if (SVirtualJoystick::ShouldDisplayTouchInterface() && IsLocalPlayerController())
 	{
@@ -41,37 +41,14 @@ void AHorrorPlayerController::BeginPlay()
 	}
 }
 
-void AHorrorPlayerController::OnPossess(APawn* aPawn)
-{
-	Super::OnPossess(aPawn);
-
-	// only spawn UI on local player controllers
-	if (IsLocalPlayerController())
-	{
-		// set up the UI for the character
-		if (AHorrorCharacter* HorrorCharacter = Cast<AHorrorCharacter>(aPawn))
-		{
-			// create the UI
-			if (!HorrorUI)
-			{
-				HorrorUI = CreateWidget<UHorrorUI>(this, HorrorUIClass);
-				HorrorUI->AddToViewport(0);
-			}
-
-			HorrorUI->SetupCharacter(HorrorCharacter);
-		}
-	}
-	
-}
-
-void AHorrorPlayerController::SetupInputComponent()
+void ADMCPPPlayerController::SetupInputComponent()
 {
 	Super::SetupInputComponent();
-	
+
 	// only add IMCs for local player controllers
 	if (IsLocalPlayerController())
 	{
-		// Add Input Mapping Contexts
+		// Add Input Mapping Context
 		if (UEnhancedInputLocalPlayerSubsystem* Subsystem = ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
 		{
 			for (UInputMappingContext* CurrentContext : DefaultMappingContexts)
@@ -88,5 +65,6 @@ void AHorrorPlayerController::SetupInputComponent()
 				}
 			}
 		}
-	}	
+	}
+	
 }

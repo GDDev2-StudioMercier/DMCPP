@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DMCPPGameMode.h"
+#include "Public/DMCPPGameMode.h"
 
 ADMCPPGameMode::ADMCPPGameMode()
 {

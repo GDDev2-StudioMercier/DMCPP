@@ -1,29 +1,32 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "DMCPPCharacter.h"
+#include "Public/DMCPPCharacter.h"
 #include "Animation/AnimInstance.h"
 #include "Camera/CameraComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "EnhancedInputComponent.h"
+#include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "DMCPP.h"
+#include "Public/DMCPP.h"
+
+// --- INCLUDES ---
+#include "SwitchInteractable.h"
+#include "AttributeComponent.h"
+#include "WeaponComponent.h" // Include the new component
+#include "Engine/World.h"
 
 ADMCPPCharacter::ADMCPPCharacter()
 {
-	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(55.f, 96.0f);
 	
-	// Create the first person mesh that will be viewed only by this character's owner
 	FirstPersonMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("First Person Mesh"));
-
 	FirstPersonMesh->SetupAttachment(GetMesh());
 	FirstPersonMesh->SetOnlyOwnerSee(true);
 	FirstPersonMesh->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::FirstPerson;
 	FirstPersonMesh->SetCollisionProfileName(FName("NoCollision"));
 
-	// Create the Camera Component	
 	FirstPersonCameraComponent = CreateDefaultSubobject<UCameraComponent>(TEXT("First Person Camera"));
 	FirstPersonCameraComponent->SetupAttachment(FirstPersonMesh, FName("head"));
 	FirstPersonCameraComponent->SetRelativeLocationAndRotation(FVector(-2.8f, 5.89f, 0.0f), FRotator(0.0f, 90.0f, -90.0f));
@@ -33,67 +36,79 @@ ADMCPPCharacter::ADMCPPCharacter()
 	FirstPersonCameraComponent->FirstPersonFieldOfView = 70.0f;
 	FirstPersonCameraComponent->FirstPersonScale = 0.6f;
 
-	// configure the character comps
+	AttributeComp = CreateDefaultSubobject<UAttributeComponent>(TEXT("AttributeComp"));
+	
+	// NEW: Initialize Weapon Component
+	WeaponComp = CreateDefaultSubobject<UWeaponComponent>(TEXT("WeaponComp"));
+
 	GetMesh()->SetOwnerNoSee(true);
 	GetMesh()->FirstPersonPrimitiveType = EFirstPersonPrimitiveType::WorldSpaceRepresentation;
 
 	GetCapsuleComponent()->SetCapsuleSize(34.0f, 96.0f);
 
-	// Configure character movement
 	GetCharacterMovement()->BrakingDecelerationFalling = 1500.0f;
 	GetCharacterMovement()->AirControl = 0.5f;
 }
 
 void ADMCPPCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
-{	
-	// Set up action bindings
+{   
 	if (UEnhancedInputComponent* EnhancedInputComponent = Cast<UEnhancedInputComponent>(PlayerInputComponent))
 	{
-		// Jumping
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ADMCPPCharacter::DoJumpStart);
-		EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ADMCPPCharacter::DoJumpEnd);
+	   if (JumpAction)
+	   {
+		   EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Started, this, &ADMCPPCharacter::DoJumpStart);
+		   EnhancedInputComponent->BindAction(JumpAction, ETriggerEvent::Completed, this, &ADMCPPCharacter::DoJumpEnd);
+	   }
 
-		// Moving
-		EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ADMCPPCharacter::MoveInput);
+	   if (MoveAction)
+	   {
+		   EnhancedInputComponent->BindAction(MoveAction, ETriggerEvent::Triggered, this, &ADMCPPCharacter::MoveInput);
+	   }
 
-		// Looking/Aiming
-		EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ADMCPPCharacter::LookInput);
-		EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &ADMCPPCharacter::LookInput);
+	   if (LookAction)
+	   {
+		   EnhancedInputComponent->BindAction(LookAction, ETriggerEvent::Triggered, this, &ADMCPPCharacter::LookInput);
+	   }
+
+	   if (MouseLookAction)
+	   {
+		   EnhancedInputComponent->BindAction(MouseLookAction, ETriggerEvent::Triggered, this, &ADMCPPCharacter::LookInput);
+	   }
+
+	   if (InteractAction)
+	   {
+		   EnhancedInputComponent->BindAction(InteractAction, ETriggerEvent::Started, this, &ADMCPPCharacter::Interact);
+	   }
+
+	   if (ShootAction)
+	   {
+		   EnhancedInputComponent->BindAction(ShootAction, ETriggerEvent::Started, this, &ADMCPPCharacter::Shoot);
+	   }
 	}
 	else
 	{
-		UE_LOG(LogDMCPP, Error, TEXT("'%s' Failed to find an Enhanced Input Component! This template is built to use the Enhanced Input system. If you intend to use the legacy system, then you will need to update this C++ file."), *GetNameSafe(this));
+	   UE_LOG(LogDMCPP, Error, TEXT("'%s' Failed to find an Enhanced Input Component!"), *GetNameSafe(this));
 	}
 }
 
-
 void ADMCPPCharacter::MoveInput(const FInputActionValue& Value)
 {
-	// get the Vector2D move axis
 	FVector2D MovementVector = Value.Get<FVector2D>();
-
-	// pass the axis values to the move input
 	DoMove(MovementVector.X, MovementVector.Y);
-
 }
 
 void ADMCPPCharacter::LookInput(const FInputActionValue& Value)
 {
-	// get the Vector2D look axis
 	FVector2D LookAxisVector = Value.Get<FVector2D>();
-
-	// pass the axis values to the aim input
 	DoAim(LookAxisVector.X, LookAxisVector.Y);
-
 }
 
 void ADMCPPCharacter::DoAim(float Yaw, float Pitch)
 {
 	if (GetController())
 	{
-		// pass the rotation inputs
-		AddControllerYawInput(Yaw);
-		AddControllerPitchInput(Pitch);
+	   AddControllerYawInput(Yaw);
+	   AddControllerPitchInput(Pitch);
 	}
 }
 
@@ -101,20 +116,49 @@ void ADMCPPCharacter::DoMove(float Right, float Forward)
 {
 	if (GetController())
 	{
-		// pass the move inputs
-		AddMovementInput(GetActorRightVector(), Right);
-		AddMovementInput(GetActorForwardVector(), Forward);
+	   AddMovementInput(GetActorRightVector(), Right);
+	   AddMovementInput(GetActorForwardVector(), Forward);
 	}
 }
 
 void ADMCPPCharacter::DoJumpStart()
 {
-	// pass Jump to the character
 	Jump();
 }
 
 void ADMCPPCharacter::DoJumpEnd()
 {
-	// pass StopJumping to the character
 	StopJumping();
+}
+
+void ADMCPPCharacter::Interact()
+{
+	if (!FirstPersonCameraComponent) return;
+
+	FVector Start = FirstPersonCameraComponent->GetComponentLocation();
+	FVector End = Start + (FirstPersonCameraComponent->GetForwardVector() * 250.0f);
+
+	FHitResult Hit;
+    FCollisionQueryParams Params;
+    Params.AddIgnoredActor(this);
+
+	if (GetWorld()->LineTraceSingleByChannel(Hit, Start, End, ECC_Visibility, Params))
+	{
+	   if (AActor* HitActor = Hit.GetActor())
+	   {
+		  USwitchInteractable* SwitchComp = HitActor->FindComponentByClass<USwitchInteractable>();
+		  if (SwitchComp)
+		  {
+			 SwitchComp->Interact();
+		  }
+	   }
+	}
+}
+
+void ADMCPPCharacter::Shoot()
+{
+	if (WeaponComp)
+	{
+		WeaponComp->Fire();
+	}
 }
